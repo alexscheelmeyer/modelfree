@@ -1,0 +1,23 @@
+{
+  "name": "modelfree",
+  "version": "0.0.1",
+  "description": "The simplest possible way to persist data in databases",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "database",
+    "persistence",
+    "schemaless",
+    "schemafree"
+  ],
+  "author": "Alex Scheel Meyer",
+  "license": "MIT",
+  "dependencies": {
+    "lodash": "4.17.21",
+    "pg": "8.8.0",
+    "sql": "0.78.0"
+  }
+}
