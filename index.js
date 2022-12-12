@@ -19,8 +19,8 @@ export class PostGresConnector {
     const keySize = _.get(options, 'keySize', 31);
     this.keySize = keySize;
     const username = _.get(options, 'username', 'postgres');
-    const databaseName = _.get(options, 'databaseName', 'modelfree');
-    const connectionString = _.get(options, 'connectionString', `postgresql://${username}@localhost:5432`);
+    const databaseName = _.get(options, 'databaseName', 'postgres');
+    const connectionString = _.get(options, 'connectionString', `postgresql://${username}@localhost:5432/${databaseName}`);
     const sql = new Sql('postgres');
     this.sql = sql;
 
@@ -31,12 +31,14 @@ export class PostGresConnector {
 
     const query = (sql) => this.pool.query(sql).then((data) => data.rows);
 
+    this.databaseCreated = false;
     const createDB = async () => {
       const res = await query(`SELECT COUNT(*) FROM pg_database WHERE datname = '${databaseName}'`);
       const found = parseInt(_.get(res, [0, 'count'], 0), 10) > 0;
       if (!found) {
         await query(`CREATE DATABASE ${databaseName}`);
       }
+      this.databaseCreated = true;
     };
 
     this.tables = {};
@@ -113,13 +115,56 @@ export class PostGresConnector {
 				return JSON.parse(row.value);
 			});
   }
+
+  async getCollectionRandomDocument(collectionName) {
+    return this.countCollectionEntries(collectionName)
+      .then((numRows) => {
+        if (!numRows) {
+          return undefined;
+        }
+        const select = this.tables[collectionName].entry.select().limit(1).offset(Math.floor(Math.random() * numRows));
+        return this.query(select)
+          .then(rows => {
+            const row = rows && rows[0];
+            if (row === undefined) {
+              return undefined;
+            }
+            return JSON.parse(row.value);
+          });
+      });
+  }
+
+  async deleteCollectionDocument(collectionName, key) {
+    if (!key) throw new Error(`Bad id ${key} for delete`);
+
+    // This selects to make sure the id exists, could we just try to delete and ignore any errors?
+		const select = this.tables[collectionName].entry.select().where({ key });
+		const del = this.tables[collectionName].entry.delete().where({ key });
+		return this.query(select)
+			.then(rows => {
+				const row = rows[0];
+				if (row === undefined) {
+					return false;
+				}
+				return this.query(del)
+					.then(() => true);
+			});
+  }
+
+  async deleteAllCollectionDocuments(collectionName) {
+		const del = this.tables[collectionName].entry.delete();
+		return this.query(del)
+			.then(() => undefined);
+  }
 }
 
 export class Document {
   constructor(properties, collection) {
     for (const key in properties) this[key] = properties[key];
     this._collection = collection;
-    this._id = randomId(collection.keySize());
+    if (!this._id) {
+      this._id = randomId(collection.keySize());
+    }
   }
 
   id() {
@@ -132,6 +177,10 @@ export class Document {
 
   async save() {
     return this._collection.saveDoc(this);
+  }
+
+  async delete() {
+    return this._collection.deleteDoc(this.id());
   }
 }
 
@@ -151,7 +200,9 @@ export class Collection {
   }
 
   async new(properties) {
-    return new Document(properties, this);
+    const doc = new Document(properties, this);
+    await doc.save();
+    return doc;
   }
 
   async saveDoc(doc) {
@@ -170,6 +221,21 @@ export class Collection {
     return null;
 	}
 
+  async random() {
+    const data = await this.mf.connector().getCollectionRandomDocument(this.name);
+    if (data) {
+      return new Document(data, this);
+    }
+    return null;
+  }
+
+	deleteDoc(id) {
+    return this.mf.connector().deleteCollectionDocument(this.name, id);
+	}
+
+	deleteAll() {
+    return this.mf.connector().deleteAllCollectionDocuments(this.name);
+	}
 }
 
 export class ModelFree {
@@ -186,65 +252,4 @@ export class ModelFree {
   connector() {
     return this._connector;
   }
-
-  all() {
-		const select = this.entry.select();
-		return this.query(select)
-      .then((rows) => rows.map((row) => JSON.parse(row.value)));
-  }
-
-  count() {
-    const count = this.entry.select(this.entry.count());
-    return this.query(count)
-      .then((countRow) => {
-        console.log('eeeee', countRow);
-        const numRows = _.get(countRow, [0, `${this.name}_count`], 0);
-        return numRows;
-      });
-  }
-
-  getRandom() {
-    return this.count()
-      .then((numRows) => {
-        if (!numRows) {
-          return undefined;
-        }
-        const select = this.entry.select().limit(1).offset(Math.floor(Math.random() * numRows));
-        return this.query(select)
-          .then(rows => {
-            const row = rows && rows[0];
-            if (row === undefined) {
-              return undefined;
-            }
-            return JSON.parse(row.value);
-          });
-      });
-  }
-
-	set(key, value) {
-		const upsert = this.entry.insert({ key, value:JSON.stringify(value) }).onConflict({ columns: ['key'], update: ['value'] });
-		return this.query(upsert);
-	}
-
-	delete(key) {
-    if (!key) throw new Error(`Bad key ${key} for delete`);
-
-		const select = this.entry.select().where({ key });
-		const del = this.entry.delete().where({ key });
-		return this.query(select)
-			.then(rows => {
-				const row = rows[0];
-				if (row === undefined) {
-					return false;
-				}
-				return this.query(del)
-					.then(() => true);
-			});
-	}
-
-	clear() {
-		const del = this.entry.delete();
-		return this.query(del)
-			.then(() => undefined);
-	}
 }
