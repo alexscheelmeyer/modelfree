@@ -8,9 +8,11 @@ export default class PostGresConnector {
   constructor(options={}) {
     const keySize = _.get(options, 'keySize', 31);
     this.keySize = keySize;
+    const hostname = _.get(options, 'hostname', 'localhost');
+    const port = _.get(options, 'port', 5432);
     const username = _.get(options, 'username', 'postgres');
     const databaseName = _.get(options, 'databaseName', 'postgres');
-    const connectionString = _.get(options, 'connectionString', `postgresql://${username}@localhost:5432/${databaseName}`);
+    const connectionString = _.get(options, 'connectionString', `postgresql://${username}@${hostname}:${port}/${databaseName}`);
     const sql = new Sql('postgres');
     this.sql = sql;
 

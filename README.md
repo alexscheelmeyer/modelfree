@@ -46,6 +46,33 @@ const widgetCopy = await widgets.get(widget.id());
 
 ## API Reference
 
+### `PostGresConnector constructor`
+You can use this without any parameters but it takes one parameter which is an options object. You will often need to
+use this unless your usecase involves the default connection-string for Postgres. The default connection-string is
+`postgresql://<username>@<hostname>:<port>/<databaseName>` where the default values are:
+
+ - `username` = "postgres"
+ - `hostname` = "localhost"
+ - `port` = 5432
+ - `databaseName` = "postgres"
+
+All of those can be customized by providing the values in the options object. The `databaseName` is the name of the database
+to use for the collections, and if it does not exist it will be created.
+
+You can also provide these properties:
+
+ - `connectionString` - If this is provided you will override the default construction of the connection-string and you
+   can do whatever you need.
+ - `keySize` - provide this if you want to customize the size of the key (id) used for each Document. The default size
+   is 31 and the id consists of a string of lowercase characters a-z.
+
+
+### `MemoryConnector constructor`
+For doing unittests and other usecases where persistence is not needed, there is a `MemoryConnector` class that can be
+used in place of a real database connector. It only takes one property for its options object, which is the `keySize`
+(with a default value of 31).
+
+
 ### `collection.count()`
 Returns a promise that resolves to the number of documents in the collection.
 
