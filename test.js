@@ -1,7 +1,8 @@
-import { ModelFree, PostGresConnector } from './index.js';
+import { ModelFree, PostGresConnector, MemoryConnector } from './index.js';
 
 async function test() {
-  const mf = new ModelFree(new PostGresConnector());
+  // const mf = new ModelFree(new PostGresConnector());
+  const mf = new ModelFree(new MemoryConnector());
   const widgets = await mf.collection('widgets');
   console.log(`${await widgets.count()} widgets found`);
 
