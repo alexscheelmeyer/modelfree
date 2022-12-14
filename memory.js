@@ -8,6 +8,10 @@ export default class MemoryConnector {
     this.tables = {};
   }
 
+  async destroy() {
+    // Do not need to do anything for a memory store
+  }
+
   async createTable(name, keySize) {
     if (!keySize) keySize = this.keySize;
     let entry = this.tables[name];
@@ -56,10 +60,22 @@ export default class MemoryConnector {
     return undefined;
   }
 
+  async allCollectionDocuments(collectionName) {
+    if (!(collectionName in this.tables)) {
+      await this.createTable(collectionName);
+    }
+
+    return this.tables[collectionName].entry;
+  }
+
   async getCollectionRandomDocument(collectionName) {
-    const numRows = this.tables[collectionName].entry.length
-    const randomIndex = Math.floor(Math.random() * numRows);
-    return this.tables[collectionName].entry[randomIndex];
+    if (collectionName in this.tables) {
+      const numRows = this.tables[collectionName].entry.length
+      const randomIndex = Math.floor(Math.random() * numRows);
+      return this.tables[collectionName].entry[randomIndex];
+    }
+
+    return null;
   }
 
   async deleteCollectionDocument(collectionName, key) {

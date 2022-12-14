@@ -1,8 +1,8 @@
 import { ModelFree, PostGresConnector, MemoryConnector } from './index.js';
 
 async function test() {
-  // const mf = new ModelFree(new PostGresConnector());
-  const mf = new ModelFree(new MemoryConnector());
+  const mf = new ModelFree(new PostGresConnector());
+  // const mf = new ModelFree(new MemoryConnector());
   const widgets = await mf.collection('widgets');
   console.log(`${await widgets.count()} widgets found`);
 
@@ -29,14 +29,13 @@ async function test() {
   await widget.delete();
   console.log(`${await widgets.count()} widgets found`);
 
+  const rows = await widgets.all();
+  console.log('rows', rows);
+
   await widgets.deleteAll();
   console.log(`${await widgets.count()} widgets found`);
 
-
-
-  // widgets.count().then((c) => console.log('count', c));
-  // widgets.all()
-  //   .then((rows) => console.log('rows', rows));
+  await mf.destroy();
 }
 
 test();

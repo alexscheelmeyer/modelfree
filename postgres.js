@@ -43,6 +43,10 @@ export default class PostGresConnector {
     };
   }
 
+  async destroy() {
+    return this.pool.end();
+  }
+
   async createTable(name, keySize) {
     if (!keySize) keySize = this.keySize;
     let entry = this.tables[name];
@@ -105,6 +109,19 @@ export default class PostGresConnector {
 					return undefined;
 				}
 				return JSON.parse(row.value);
+			});
+  }
+
+  async allCollectionDocuments(collectionName) {
+    if (!(collectionName in this.tables)) {
+      await this.createTable(collectionName);
+    }
+
+		const select = this.tables[collectionName].entry.select();
+		return this.query(select)
+			.then(rows => {
+        if (!rows) return undefined;
+        return rows.map((r) => JSON.parse(r.value));
 			});
   }
 

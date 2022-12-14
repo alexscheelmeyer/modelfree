@@ -46,6 +46,13 @@ const widgetCopy = await widgets.get(widget.id());
 
 ## API Reference
 
+### `ModelFree constructor`
+This just takes a connector as parameter and return a modelfree instance.
+
+### `modelfree.destroy()`
+You should call this when you are done using the database, for example when shutting down your application. Failing to
+call the destroy method can result in Node JS "hanging" because a connection to the database is still present.
+
 ### `PostGresConnector constructor`
 You can use this without any parameters but it takes one parameter which is an options object. You will often need to
 use this unless your usecase involves the default connection-string for Postgres. The default connection-string is
@@ -84,6 +91,10 @@ which is also what the `.id()` method returns and if it is not provided as part 
 const widget = await widgets.new({ name: 'my widget' });
 // widget contains _id and name properties
 ```
+
+### `collection.all()`
+Returns a promise that resolves to an array with all the documents in the collection. There is no paging so be aware that you will
+get every single document which might be a lot.
 
 ### `collection.random()`
 Returns a promise that resolves to a randomly selected document from the collection. If no documents at all exists in the collection

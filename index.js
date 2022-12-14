@@ -84,11 +84,19 @@ export class Collection {
     return null;
   }
 
-	deleteDoc(id) {
+  async all() {
+    const data = await this.mf.connector().allCollectionDocuments(this.name);
+    if (data) {
+      return data.map((d) => new Document(d, this));
+    }
+    return null;
+  }
+
+	async deleteDoc(id) {
     return this.mf.connector().deleteCollectionDocument(this.name, id);
 	}
 
-	deleteAll() {
+	async deleteAll() {
     return this.mf.connector().deleteAllCollectionDocuments(this.name);
 	}
 }
@@ -106,5 +114,9 @@ export class ModelFree {
 
   connector() {
     return this._connector;
+  }
+
+  async destroy() {
+    return this._connector.destroy();
   }
 }
