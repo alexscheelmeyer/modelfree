@@ -99,6 +99,14 @@ export class Collection {
 	async deleteAll() {
     return this.mf.connector().deleteAllCollectionDocuments(this.name);
 	}
+
+  async subscribe(cb) {
+    return this.mf.connector().subscribeCollectionChanges(this.name, cb);
+  }
+
+  async unsubscribe(cb) {
+    return this.mf.connector().unsubscribeCollectionChanges(this.name, cb);
+  }
 }
 
 export class ModelFree {

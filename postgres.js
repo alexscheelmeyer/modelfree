@@ -11,8 +11,10 @@ export default class PostGresConnector {
     const hostname = _.get(options, 'hostname', 'localhost');
     const port = _.get(options, 'port', 5432);
     const username = _.get(options, 'username', 'postgres');
+    const password = _.get(options, 'password', '');
     const databaseName = _.get(options, 'databaseName', 'postgres');
-    const connectionString = _.get(options, 'connectionString', `postgresql://${username}@${hostname}:${port}/${databaseName}`);
+    const connectionString = _.get(options, 'connectionString', `postgresql://${username}:${password}@${hostname}:${port}/${databaseName}`);
+    this.connectionString = connectionString;
     const sql = new Sql('postgres');
     this.sql = sql;
 
@@ -44,12 +46,16 @@ export default class PostGresConnector {
   }
 
   async destroy() {
-    return this.pool.end();
+    await this.pool.end();
+    if (this.listenClient) {
+      this.listenClient.end();
+    }
   }
 
   async createTable(name, keySize) {
     if (!keySize) keySize = this.keySize;
-    let entry = this.tables[name];
+    let entry;
+    if (name in this.tables) entry = this.tables[name].entry;
     if (!entry) {
       entry = this.sql.define({ name,
         columns: [
@@ -64,7 +70,7 @@ export default class PostGresConnector {
           }
         ]
       });
-      this.tables[name] = { entry, keySize };
+      this.tables[name] = { entry, keySize, subscribers: [] };
     }
 
     return this.query(entry.create().ifNotExists().toString());
@@ -164,6 +170,46 @@ export default class PostGresConnector {
 		const del = this.tables[collectionName].entry.delete();
 		return this.query(del)
 			.then(() => undefined);
+  }
+
+  async subscribeCollectionChanges(collectionName, cb) {
+    if (collectionName in this.tables) {
+      if (this.tables[collectionName].subscribers.length === 0) {
+        const createFunction = `CREATE OR REPLACE FUNCTION public.notify_${collectionName}_changed()
+          RETURNS trigger
+          LANGUAGE plpgsql
+        AS $function$
+        BEGIN
+          PERFORM pg_notify('${collectionName}_event', row_to_json(NEW)::text);
+          RETURN NULL;
+        END
+        $function$`;
+        await this.query(createFunction);
+
+        const createTrigger = `CREATE OR REPLACE TRIGGER updated_${collectionName}_trigger AFTER INSERT OR UPDATE ON ${collectionName} FOR EACH ROW EXECUTE PROCEDURE notify_${collectionName}_changed();`;
+        await this.query(createTrigger);
+
+        const listenClient = new pg.Client(this.connectionString);
+        await listenClient.connect();
+        await listenClient.query(`LISTEN "${collectionName}_event"`);
+        listenClient.on('notification', async (data) => {
+          const payload = JSON.parse(data.payload);
+          for (const s of this.tables[collectionName].subscribers) {
+            s(payload.key);
+          }
+        });
+        this.listenClient = listenClient;
+      }
+      this.tables[collectionName].subscribers.push(cb);
+    }
+  }
+
+  async unsubscribeCollectionChanges(collectionName, cb) {
+    if (collectionName in this.tables) {
+      const foundIndex = this.tables[collectionName].subscribers.find((s) => s === cb);
+      if (foundIndex)
+        this.tables[collectionName].subscribers.splice(foundIndex, 1);
+    }
   }
 }
 

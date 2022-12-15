@@ -18,6 +18,11 @@ async function test() {
   const sameWidget = await widgets.get(widget.id());
   console.log(alsoWidget.name, sameWidget.name);
 
+  const updateCallback = (id) => {
+    console.log(`Widget updated: ${id}`);
+  };
+  await widgets.subscribe(updateCallback);
+
   const otherWidget = await widgets.new({ name: 'different widget' });
   console.log(`${await widgets.count()} widgets found`);
 
@@ -31,6 +36,8 @@ async function test() {
 
   const rows = await widgets.all();
   console.log('rows', rows);
+
+  await widgets.unsubscribe(updateCallback);
 
   await widgets.deleteAll();
   console.log(`${await widgets.count()} widgets found`);

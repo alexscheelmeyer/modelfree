@@ -56,9 +56,10 @@ call the destroy method can result in Node JS "hanging" because a connection to 
 ### `PostGresConnector constructor`
 You can use this without any parameters but it takes one parameter which is an options object. You will often need to
 use this unless your usecase involves the default connection-string for Postgres. The default connection-string is
-`postgresql://<username>@<hostname>:<port>/<databaseName>` where the default values are:
+`postgresql://<username>:<password>@<hostname>:<port>/<databaseName>` where the default values are:
 
  - `username` = "postgres"
+ - `password` = empty string
  - `hostname` = "localhost"
  - `port` = 5432
  - `databaseName` = "postgres"
@@ -103,6 +104,19 @@ Returns a promise that resolves to a randomly selected document from the collect
 ### `collection.get(<id>)`
 Returns a promise that resolves to the document with the given id, if found in the collection. Otherwise it returns `null`.
 
+### `collection.subscribe(<callback>)`
+Call this method to register a callback function that will be called when new documents are added to the collection or existing
+documents are updated. The callback function will be called once per document with the id of the document that was added or updated. This allows
+various patterns where consumers of data can know to respond when a producer has produced a piece of data, without the producer
+needing to know about the consumers to trigger them directly.
+
+Note that this will not work across applications for the MemoryConnector since there is no central storage in that case.
+
+Also note that for PostGresConnector this will create a function and a trigger in the database to facilitate this, but it will not
+be removed again so cleanup needs to be done manually if needed.
+
+### `collection.unsubscribe(<callback>)`
+Call this method to remove a callback from the list of change-subscribers.
 
 ### `document.id()`
 Returns the id of the document, which used when looking up documents in the collection.

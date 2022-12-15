@@ -8,16 +8,20 @@ export default class MemoryConnector {
     this.tables = {};
   }
 
+  _notifySubscribers(subscribers, id) {
+    for (const s of subscribers) {
+      s(id);
+    }
+  }
+
   async destroy() {
     // Do not need to do anything for a memory store
   }
 
   async createTable(name, keySize) {
     if (!keySize) keySize = this.keySize;
-    let entry = this.tables[name];
-    if (!entry) {
-      entry = [];
-      this.tables[name] = { entry, keySize };
+    if (!(name in this.tables)) {
+      this.tables[name] = { entry: [], keySize, subscribers: [] };
     }
   }
 
@@ -40,6 +44,7 @@ export default class MemoryConnector {
     } else {
       this.tables[collectionName].entry.push(doc.value());
     }
+    this._notifySubscribers(this.tables[collectionName].subscribers, doc.id());
   }
 
   getCollectionKeySize(collectionName) {
@@ -89,6 +94,19 @@ export default class MemoryConnector {
   async deleteAllCollectionDocuments(collectionName) {
     if (collectionName in this.tables)
       this.tables[collectionName].entry = [];
+  }
+
+  async subscribeCollectionChanges(collectionName, cb) {
+    if (collectionName in this.tables)
+      this.tables[collectionName].subscribers.push(cb);
+  }
+
+  async unsubscribeCollectionChanges(collectionName, cb) {
+    if (collectionName in this.tables) {
+      const foundIndex = this.tables[collectionName].subscribers.find((s) => s === cb);
+      if (foundIndex)
+        this.tables[collectionName].subscribers.splice(foundIndex, 1);
+    }
   }
 }
 
