@@ -173,35 +173,37 @@ export default class PostGresConnector {
   }
 
   async subscribeCollectionChanges(collectionName, cb) {
-    if (collectionName in this.tables) {
-      if (this.tables[collectionName].subscribers.length === 0) {
-        const createFunction = `CREATE OR REPLACE FUNCTION public.notify_${collectionName}_changed()
-          RETURNS trigger
-          LANGUAGE plpgsql
-        AS $function$
-        BEGIN
-          PERFORM pg_notify('${collectionName}_event', row_to_json(NEW)::text);
-          RETURN NULL;
-        END
-        $function$`;
-        await this.query(createFunction);
-
-        const createTrigger = `CREATE OR REPLACE TRIGGER updated_${collectionName}_trigger AFTER INSERT OR UPDATE ON ${collectionName} FOR EACH ROW EXECUTE PROCEDURE notify_${collectionName}_changed();`;
-        await this.query(createTrigger);
-
-        const listenClient = new pg.Client(this.connectionString);
-        await listenClient.connect();
-        await listenClient.query(`LISTEN "${collectionName}_event"`);
-        listenClient.on('notification', async (data) => {
-          const payload = JSON.parse(data.payload);
-          for (const s of this.tables[collectionName].subscribers) {
-            s(payload.key);
-          }
-        });
-        this.listenClient = listenClient;
-      }
-      this.tables[collectionName].subscribers.push(cb);
+    if (!(collectionName in this.tables)) {
+      await this.createTable(collectionName);
     }
+
+    if (this.tables[collectionName].subscribers.length === 0) {
+      const createFunction = `CREATE OR REPLACE FUNCTION public.notify_${collectionName}_changed()
+        RETURNS trigger
+        LANGUAGE plpgsql
+      AS $function$
+      BEGIN
+        PERFORM pg_notify('${collectionName}_event', row_to_json(NEW)::text);
+        RETURN NULL;
+      END
+      $function$`;
+      await this.query(createFunction);
+
+      const createTrigger = `CREATE OR REPLACE TRIGGER updated_${collectionName}_trigger AFTER INSERT OR UPDATE ON ${collectionName} FOR EACH ROW EXECUTE PROCEDURE notify_${collectionName}_changed();`;
+      await this.query(createTrigger);
+
+      const listenClient = new pg.Client(this.connectionString);
+      await listenClient.connect();
+      await listenClient.query(`LISTEN "${collectionName}_event"`);
+      listenClient.on('notification', async (data) => {
+        const payload = JSON.parse(data.payload);
+        for (const s of this.tables[collectionName].subscribers) {
+          s(payload.key);
+        }
+      });
+      this.listenClient = listenClient;
+    }
+    this.tables[collectionName].subscribers.push(cb);
   }
 
   async unsubscribeCollectionChanges(collectionName, cb) {

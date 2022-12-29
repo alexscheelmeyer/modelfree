@@ -72,7 +72,9 @@ You can also provide these properties:
  - `connectionString` - If this is provided you will override the default construction of the connection-string and you
    can do whatever you need.
  - `keySize` - provide this if you want to customize the size of the key (id) used for each Document. The default size
-   is 31 and the id consists of a string of lowercase characters a-z.
+   is 31 and the id consists of a string of lowercase characters a-z. NOTE: you should make sure that the used keysize
+   is the same every time you use a specific table as otherwise you might end up with documents having various keysizes
+   in the collection.
 
 
 ### `MemoryConnector constructor`
