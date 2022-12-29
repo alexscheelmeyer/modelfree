@@ -1,5 +1,5 @@
 import _ from 'lodash';
-import { Sql } from 'sql';
+import { Sql } from 'sql-ts';
 import pg from 'pg';
 
 const { Pool } = pg;
